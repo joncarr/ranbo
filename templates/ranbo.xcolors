@@ -1,0 +1,20 @@
+#define COLOR0		    {{color0}} 
+#define COLOR1		    {{color1}} 
+#define COLOR2		    {{color2}} 
+#define COLOR3		    {{color3}} 
+#define COLOR4		    {{color4}} 
+#define COLOR5		    {{color5}} 
+#define COLOR6		    {{color6}} 
+#define COLOR7		    {{color7}} 
+#define COLOR8		    {{color8}} 
+#define COLOR9		    {{color9}} 
+#define COLOR10		    {{color10}} 
+#define COLOR11		    {{color11}} 
+#define COLOR12		    {{color12}} 
+#define COLOR13		    {{color13}} 
+#define COLOR14		    {{color14}} 
+#define COLOR15		    {{color15}} 
+
+#define FOREGROUND	    {{foreground}} 
+#define BACKGROUND	    {{background}} 
+#define CURSOR		    {{cursor}} 
