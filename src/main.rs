@@ -48,15 +48,14 @@ fn main() {
 
     let mut rgb_colors = Vec::<color::RGB>::new();
     for (i, color) in palette_rgb.into_iter().enumerate() {
-        rgb_colors.push(color::RGB::new(color.r as f64, color.g as f64, color.b as f64));
+        rgb_colors.push(color::RGB::new(color.r, color.g, color.b));
         if i == 0 {
-            rgb_colors[i].darken(80.0);
+            rgb_colors[i].darken(80);
         }
         if i == 7 || i == 15 {
-            rgb_colors[i].lighten(65.0);
+            rgb_colors[i].lighten(65);
         }
     }
-    
 
     let mut hex_values = Vec::<String>::new();
     for val in &rgb_colors {

@@ -1,55 +1,67 @@
 pub struct RGB {
-        r: f64,
-        g: f64,
-        b: f64
-    }
-
+    r: u8,
+    g: u8,
+    b: u8,
+}
 
 impl RGB {
-    pub fn new(r: f64, g: f64, b: f64) -> RGB {
+    pub fn new(r: u8, g: u8, b: u8) -> RGB {
         RGB { r: r, g: g, b: b }
     }
 
     pub fn as_string(&self) -> String {
-        format!("rgb({}, {}, {})", self.r.ceil(), self.g.ceil(), self.b.ceil())
+        format!("rgb({}, {}, {})", self.r, self.g, self.b)
     }
 
-    pub fn darken(&mut self, percent: f64){
-        self.r *= 1.0 - percent/100.0;
-        self.g *= 1.0 - percent/100.0;
-        self.b *= 1.0 - percent/100.0;
+    pub fn darken(&mut self, percent: u8) {
+        let rf = self.r as f64 * 1.0 - percent as f64 / 100.0;
+        let gf = self.g as f64 * 1.0 - percent as f64 / 100.0;
+        let bf = self.b as f64 * 1.0 - percent as f64 / 100.0;
+
+        self.r = rf.ceil() as u8;
+        self.g = gf.ceil() as u8;
+        self.b = bf.ceil() as u8;
     }
 
-    pub fn lighten(&mut self, percent: f64){
-        self.r = self.r + (255.0 - self.r) * (percent/100.0);
-        self.g = self.g + (255.0 - self.g) * (percent/100.0);
-        self.b = self.b + (255.0 - self.b) * (percent/100.0);
+    pub fn lighten(&mut self, percent: u8) {
+        let rf = self.r as f64 + (255.0 - self.r as f64) * (percent as f64 / 100.0);
+        let gf = self.g as f64 + (255.0 - self.g as f64) * (percent as f64 / 100.0);
+        let bf = self.b as f64 + (255.0 - self.b as f64) * (percent as f64 / 100.0);
+
+        self.r = rf.ceil() as u8;
+        self.g = gf.ceil() as u8;
+        self.b = bf.ceil() as u8;
     }
 
     pub fn to_hex_string(&self) -> String {
-        let r_int = self.r.ceil() as i32;
-        let g_int = self.g.ceil() as i32;
-        let b_int = self.b.ceil() as i32;
-        
-        format!("{:02X}{:02X}{:02X}", r_int, g_int, b_int)
+        format!("{:02X}{:02X}{:02X}", self.r, self.g, self.b)
     }
 }
 
 pub struct RGBA {
-    r: f64,
-    g: f64,
-    b: f64,
-    a: f64
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
 }
 
 impl RGBA {
-    pub fn new(r: f64, g: f64, b: f64, a: f64) -> RGBA {
-        RGBA { r: r, g: g, b: b, a: a }
+    pub fn new(r: u8, g: u8, b: u8, a: u8) -> RGBA {
+        RGBA {
+            r: r,
+            g: g,
+            b: b,
+            a: a,
+        }
     }
-    
-    pub fn lighten(&mut self, percent: f64){
-        self.r = self.r.ceil() + (255.0 - self.r) * (percent/100.0) * self.a;
-        self.g = self.g.ceil() + (255.0 - self.g) * (percent/100.0) * self.a;
-        self.b = self.b.ceil() + (255.0 - self.b) * (percent/100.0) * self.a;
+
+    pub fn lighten(&mut self, percent: u8) {
+        let rf = self.r as f64 + (255.0 - self.r as f64) * (percent as f64 / 100.0) * self.a as f64;
+        let gf = self.g as f64 + (255.0 - self.g as f64) * (percent as f64 / 100.0) * self.a as f64;
+        let bf = self.b as f64 + (255.0 - self.b as f64) * (percent as f64 / 100.0) * self.a as f64;
+
+        self.r = rf.ceil() as u8;
+        self.g = gf.ceil() as u8;
+        self.b = bf.ceil() as u8;
     }
 }
