@@ -167,7 +167,6 @@ fn write_gimp_palette(
 }
 
 fn copy_gimp_palette_to_inkscape(config_dir: PathBuf, filename: &str, gimp_palette_path: &PathBuf) {
-    //Copy the GIMP palette file just created to inkscape palettes directory
     let mut inkscape_palette = PathBuf::new();
     inkscape_palette.push(config_dir.as_path());
     inkscape_palette.push("inkscape/palettes/");
