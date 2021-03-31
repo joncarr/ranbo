@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub struct RGB {
     pub r: u8,
     pub g: u8,

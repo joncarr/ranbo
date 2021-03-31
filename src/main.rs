@@ -1,60 +1,41 @@
-extern crate clap;
-extern crate color_thief;
-extern crate dirs;
-extern crate image;
-
-use clap::{App, Arg};
-use color_thief::ColorFormat;
+use clap::{App, Arg, ArgMatches};
+use color::RGB;
+use color_thief::{self, ColorFormat};
 use std::fs::{File, OpenOptions};
+use std::io;
 use std::io::prelude::*;
-use std::io::{self, BufWriter};
-use std::mem::drop;
+use std::io::BufWriter;
 use std::path::PathBuf;
-use std::process;
+use std::{path::Path, process};
 
 mod color;
 
-const VERSION: &str = "0.2.0";
-
 fn main() {
-    let matches =
-        App::new("Ranbo")
-            .version(VERSION)
-            .author("Jon Carr <jec@joncarr.xyz>")
-            .about("A tool to generate color palettes from an image. The smallest color palette that can be created is 4 colors, while the biggest is 20 colors")
-            .arg(
-                Arg::with_name("image")
-                    .short("i")
-                    .long("image")
-                    .required(true)
-                    .takes_value(true)
-                    .help("path to image to pull colors from"),
-            )
-            .arg(Arg::with_name("count").short("c").takes_value(true).help(
-                "Number of colors you want on your palette, between 4 and 20 (defaults to 5).  Do not pass '-c' and '-t' together.",
-            ))
-            .arg(
-                Arg::with_name("theme")
-                    .short("t")
-                    .long("theme")
-                    .required(false)
-                    .takes_value(false)
-                    .help("Pass this flag to generate palette as a theme with theme templates. The color count will default to 16 to satisfy Base16 themes. So you may omit '-c' when passing the '-t' flag."),
-            )
-            .get_matches();
+    let version = String::from("0.3.0");
+
+    let matches = new_app(&version);
 
     // Parse the arguments and store to variable
-    let path = matches.value_of("image").unwrap();
-    let color_count = match matches.value_of("count") {
-        Some(count) => count,
-        None => "5",
+    let path = match matches.value_of("image") {
+        Some(path) => path,
+        None => {
+            println!("No path to the image was provided.");
+            process::exit(1);
+        }
     };
 
-    let mut count = color_count.parse::<u8>().unwrap();
+    let color_count = match matches.value_of("count") {
+        Some(count) => count,
+        None => "10",
+    };
 
-    if matches.is_present("theme") {
-        count = 16;
-    }
+    let mut count = match color_count.parse::<u8>() {
+        Ok(count) => count,
+        Err(e) => {
+            println!("Error: {}", e);
+            process::exit(1);
+        }
+    };
 
     if count < 4 || count > 20 {
         println!("Color count should be between 4 and 20");
@@ -63,64 +44,105 @@ fn main() {
         count -= 1;
     }
 
-    let split = path.split("/");
-
-    let mut filename = "";
-    for s in split {
-        if s.contains("jpg") || s.contains("png") || s.contains("bmp") {
-            filename = s;
-        }
-    }
-
-    let split_filename: Vec<&str> = filename.split(".").into_iter().collect();
-    let filename = split_filename[0];
-
-    // Open the image to be read by color_thief
-    let img = match image::open(path) {
-        Ok(p) => p,
-        Err(_) => {
-            println!("Oh Snap! There was a problem opening that image.");
+    let path = Path::new(path);
+    let ext = match path.extension() {
+        Some(extension) => extension,
+        None => {
+            println!("Image must have a valid file extension (JPG, PNG, or BMP).");
             process::exit(1);
         }
     };
 
-    // color_thief::get_palette requires a vec!<u8> holding pixel data
-    // palette_rgb is the vector holding the palette in rgb<r, g, b> format
-    let img_pixels = img.to_rgb().into_vec();
-    let palette_rgb =
-        color_thief::get_palette(&img_pixels, ColorFormat::Rgb, 5, count + 1).unwrap();
+    let filename = path.file_stem().unwrap();
+
+    if ext.is_empty() {
+        println!("Image requires a valid file extension to be an image");
+        process::exit(1);
+    }
+
+    // Open the image to be read by color_thief
+    let img = image::open(path).expect("Error opening image");
+    let img = img.to_rgb8().into_vec();
+
+    let palette = match color_thief::get_palette(&img, ColorFormat::Rgb, 5, count) {
+        Ok(p) => p,
+        Err(e) => {
+            println!("Error: {}", e);
+            process::exit(1);
+        }
+    };
 
     let mut rgb_colors = Vec::<color::RGB>::new();
-    let mut hex_values = Vec::<String>::new();
+    let mut hex_colors = Vec::<String>::new();
 
-    // println!();
-    // println!("RGB Values");
-    for val in &palette_rgb {
-        rgb_colors.push(color::RGB::new(val.r, val.g, val.b));
-        // println!("{}", val);
+    for color in palette {
+        rgb_colors.push(color::RGB::new(color.r, color.g, color.b))
     }
 
-    // println!();
-    // println!("Hexadecimal Values");
-    for val in &rgb_colors {
-        hex_values.push(val.to_hex_string());
-        // println!("{}", val.to_hex_string());
+    for color in &rgb_colors {
+        hex_colors.push(color.to_hex_string());
     }
 
-    if matches.is_present("theme") {
-        rgb_colors[0].darken(80);
-        rgb_colors[7].lighten(65);
-        rgb_colors[15].lighten(65);
-    }
+    let config_dir = match dirs::config_dir() {
+        Some(path) => path,
+        None => {
+            println!("Unable to locate configuration directory.");
+            process::exit(1);
+        }
+    };
 
-    let config_dir = dirs::config_dir().unwrap();
+    let gimp_palette_path = construct_gimp_palette_path(&config_dir, &filename.to_str().unwrap());
 
+    write_gimp_palette(
+        &gimp_palette_path,
+        filename.to_str().unwrap(),
+        rgb_colors,
+        hex_colors,
+    );
+
+    copy_gimp_palette_to_inkscape(config_dir, filename.to_str().unwrap(), &gimp_palette_path);
+
+    println!("GIMP and Inkscape palettes successfully created.");
+    println!("Palette Name: {}", filename.to_str().unwrap());
+    println!("If GIMP or Inkscape were open, restart them to import your new palette.");
+}
+
+fn construct_gimp_palette_path(config_dir: &PathBuf, filename: &str) -> PathBuf {
     let mut gimp_palette_path = PathBuf::new();
     gimp_palette_path.push(&config_dir.as_path());
     gimp_palette_path.push("GIMP/2.10/palettes/");
     gimp_palette_path.push(&filename);
     gimp_palette_path.set_extension("gpl");
+    gimp_palette_path
+}
 
+fn new_app<'a>(version: &'a String) -> ArgMatches<'a> {
+    App::new("Ranbo")
+        .version(version.as_str())
+        .author("Jon Carr <jecarr33@gmail.com>")
+        .about("Generate palettes for GIMP and Inkscape from an image at the command line.")
+        .arg(
+            Arg::with_name("image")
+                .short("i")
+                .long("image")
+                .required(true)
+                .takes_value(true)
+                .help("path to image to pull colors from"),
+        )
+        .arg(
+            Arg::with_name("count").short("c").takes_value(true).help(
+                "Number of colors you want on your palette, between 4 and 20 (defaults to 5).",
+            ),
+        )
+        .get_matches()
+}
+
+fn write_gimp_palette(
+    gimp_palette_path: &PathBuf,
+    filename: &str,
+    rgb_colors: Vec<RGB>,
+    hex_colors: Vec<String>,
+) {
     //Create GIMP Palette file and write it to GIMP palettes directory
     let gimp_gpl = OpenOptions::new()
         .read(true)
@@ -138,12 +160,13 @@ fn main() {
     writer.write(b"#\n").unwrap();
 
     for (i, c) in rgb_colors.into_iter().enumerate() {
-        let color_string = format!("{}\t{}\t{}\t#{}\n", c.r, c.g, c.b, hex_values[i]);
+        let color_string = format!("{}\t{}\t{}\t#{}\n", c.r, c.g, c.b, hex_colors[i]);
         writer.write(color_string.as_ref()).unwrap();
     }
+    writer.flush().expect("Writer flush failed.");
+}
 
-    drop(writer);
-
+fn copy_gimp_palette_to_inkscape(config_dir: PathBuf, filename: &str, gimp_palette_path: &PathBuf) {
     //Copy the GIMP palette file just created to inkscape palettes directory
     let mut inkscape_palette = PathBuf::new();
     inkscape_palette.push(config_dir.as_path());
@@ -153,9 +176,5 @@ fn main() {
 
     let mut inkscape_gpl = File::create(inkscape_palette.as_path()).unwrap();
     let mut og_gpl = File::open(&gimp_palette_path).unwrap();
-    io::copy(&mut og_gpl, &mut inkscape_gpl);
-
-    println!("GIMP and Inkscape palettes successfully created.");
-    println!("Palette Name: {}", filename);
-    println!("If GIMP or Inkscape were open, restart them to import your new palette.");
+    io::copy(&mut og_gpl, &mut inkscape_gpl).expect("Unable to generate inkscape palette.");
 }
