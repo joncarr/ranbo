@@ -1,4 +1,4 @@
-![ranbo image](https://raw.githubusercontent.com/joncarr/gps/master/extras/gps_screen.png)
+![ranbo image](https://raw.githubusercontent.com/joncarr/ranbo/master/extras/ranbo_banner.jpg)
 # Ranbo
 Ranbo is a simple utility tool that generates palettes for GIMP and Inkscape and automatically imports them into the software.
 
